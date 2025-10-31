@@ -108,25 +108,25 @@ import { SITE_TITLE } from '../consts';
 			<div class="calculator-container">
 				<h1>Calculator</h1>
 				<div class="calculator">
-					<div class="display" id="display">0</div>
+					<div class="display" id="display" role="status" aria-live="polite" aria-label="Calculator display">0</div>
 					<div class="buttons">
-						<button class="clear" onclick="clearDisplay()">C</button>
-						<button class="operator" onclick="appendOperator('/')">/</button>
-						<button class="operator" onclick="appendOperator('*')">×</button>
-						<button onclick="appendNumber('7')">7</button>
-						<button onclick="appendNumber('8')">8</button>
-						<button onclick="appendNumber('9')">9</button>
-						<button class="operator" onclick="appendOperator('-')">-</button>
-						<button onclick="appendNumber('4')">4</button>
-						<button onclick="appendNumber('5')">5</button>
-						<button onclick="appendNumber('6')">6</button>
-						<button class="operator" onclick="appendOperator('+')">+</button>
-						<button onclick="appendNumber('1')">1</button>
-						<button onclick="appendNumber('2')">2</button>
-						<button onclick="appendNumber('3')">3</button>
-						<button class="equals" onclick="calculate()">=</button>
-						<button class="zero" onclick="appendNumber('0')">0</button>
-						<button onclick="appendDecimal()">.</button>
+						<button class="clear" onclick="clearDisplay()" aria-label="Clear calculator">C</button>
+						<button class="operator" onclick="appendOperator('/')" aria-label="Divide">/</button>
+						<button class="operator" onclick="appendOperator('*')" aria-label="Multiply">×</button>
+						<button onclick="appendNumber('7')" aria-label="Number 7">7</button>
+						<button onclick="appendNumber('8')" aria-label="Number 8">8</button>
+						<button onclick="appendNumber('9')" aria-label="Number 9">9</button>
+						<button class="operator" onclick="appendOperator('-')" aria-label="Subtract">-</button>
+						<button onclick="appendNumber('4')" aria-label="Number 4">4</button>
+						<button onclick="appendNumber('5')" aria-label="Number 5">5</button>
+						<button onclick="appendNumber('6')" aria-label="Number 6">6</button>
+						<button class="operator" onclick="appendOperator('+')" aria-label="Add">+</button>
+						<button onclick="appendNumber('1')" aria-label="Number 1">1</button>
+						<button onclick="appendNumber('2')" aria-label="Number 2">2</button>
+						<button onclick="appendNumber('3')" aria-label="Number 3">3</button>
+						<button class="equals" onclick="calculate()" aria-label="Calculate result">=</button>
+						<button class="zero" onclick="appendNumber('0')" aria-label="Number 0">0</button>
+						<button onclick="appendDecimal()" aria-label="Decimal point">.</button>
 					</div>
 				</div>
 			</div>
@@ -155,7 +155,7 @@ import { SITE_TITLE } from '../consts';
 			}
 
 			function appendNumber(num) {
-				if (shouldResetDisplay) {
+				if (currentInput === 'Error' || shouldResetDisplay) {
 					currentInput = num;
 					shouldResetDisplay = false;
 				} else {
@@ -165,7 +165,7 @@ import { SITE_TITLE } from '../consts';
 			}
 
 			function appendDecimal() {
-				if (shouldResetDisplay) {
+				if (currentInput === 'Error' || shouldResetDisplay) {
 					currentInput = '0.';
 					shouldResetDisplay = false;
 				} else if (!currentInput.includes('.')) {
@@ -175,6 +175,9 @@ import { SITE_TITLE } from '../consts';
 			}
 
 			function appendOperator(op) {
+				if (currentInput === 'Error') {
+					return;
+				}
 				if (operator !== null && previousInput !== null && !shouldResetDisplay) {
 					calculate();
 				}
@@ -203,18 +206,59 @@ import { SITE_TITLE } from '../consts';
 						result = prev * current;
 						break;
 					case '/':
-						result = current !== 0 ? prev / current : 0;
+						if (current === 0) {
+							currentInput = 'Error';
+							operator = null;
+							previousInput = null;
+							shouldResetDisplay = true;
+							updateDisplay();
+							return;
+						}
+						result = prev / current;
 						break;
 					default:
 						return;
 				}
 
-				currentInput = result.toString();
+				// Format result to avoid very long decimals
+				const resultStr = result.toString();
+				if (resultStr.includes('.') && resultStr.split('.')[1].length > 8) {
+					currentInput = result.toFixed(8).replace(/\.?0+$/, '');
+				} else {
+					currentInput = resultStr;
+				}
+				
 				operator = null;
 				previousInput = null;
 				shouldResetDisplay = true;
 				updateDisplay();
 			}
+
+			// Keyboard support
+			document.addEventListener('keydown', function(event) {
+				const key = event.key;
+				
+				if (key >= '0' && key <= '9') {
+					appendNumber(key);
+				} else if (key === '.') {
+					appendDecimal();
+				} else if (key === '+' || key === '-' || key === '*' || key === '/') {
+					appendOperator(key);
+				} else if (key === 'Enter' || key === '=') {
+					event.preventDefault();
+					calculate();
+				} else if (key === 'Escape' || key.toLowerCase() === 'c') {
+					clearDisplay();
+				} else if (key === 'Backspace') {
+					event.preventDefault();
+					if (currentInput.length > 1) {
+						currentInput = currentInput.slice(0, -1);
+					} else {
+						currentInput = '0';
+					}
+					updateDisplay();
+				}
+			});
 
 			// Initialize display
 			updateDisplay();
